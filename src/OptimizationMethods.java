@@ -33,8 +33,8 @@ public class OptimizationMethods {
         printResult("Метод наискорейшего спуска", resultSteepest, exactSolution, exactFunctionValue);
 
         // Метод сопряженных направлений
-        Result resultConjugate = conjugateDirections(x0, epsilon1, epsilon2, maxIter);
-        printResult("Метод сопряженных направлений", resultConjugate, exactSolution, exactFunctionValue);
+        //Result resultConjugate = conjugateDirections(x0, epsilon1, epsilon2, maxIter);
+        //printResult("Метод сопряженных направлений", resultConjugate, exactSolution, exactFunctionValue);
 
         // Метод Ньютона
         Result resultNewton = newtonMethod(x0, epsilon1, epsilon2, maxIter);
@@ -73,7 +73,7 @@ public class OptimizationMethods {
             }
 
             // Вычисляем шаг t по методу квадратичной интерполяции
-            double t = quadraticInterpolation(x, grad);
+            double t = quadraticInterpolation(0.0, 1.0, epsilon1, epsilon2, new int[]{0}, grad, x);
 
             // Обновляем точку
             dx[0] = -t * grad[0];
@@ -88,7 +88,7 @@ public class OptimizationMethods {
                 break;
             }
 
-            k++;
+            k++; // Увеличиваем счетчик итераций
         }
 
         return new Result(x, k);
@@ -123,7 +123,7 @@ public class OptimizationMethods {
             y[1] = x[1];
 
             // Находим шаг t_i
-            double t = quadraticInterpolation(x, grad);
+            double t = quadraticInterpolation(0.0, 1.0, epsilon1, epsilon2, new int[]{0}, grad, x);
 
             // Обновляем точку
             x[0] -= t * grad[0];
@@ -145,7 +145,7 @@ public class OptimizationMethods {
                 break;
             }
 
-            k++;
+            k++; // Увеличиваем счетчик итераций
         }
 
         return new Result(x, k);
@@ -190,7 +190,7 @@ public class OptimizationMethods {
                 break;
             }
 
-            k++;
+            k++; // Увеличиваем счетчик итераций
         }
 
         return new Result(x, k);
@@ -202,22 +202,86 @@ public class OptimizationMethods {
     }
 
     // Квадратичная интерполяция
-    private static double quadraticInterpolation(double[] x, double[] grad) {
-        double t1 = 0.0;
-        double t2 = 1.0;
-        double f1 = f(x);
-        double f2 = f(new double[]{x[0] - t2 * grad[0], x[1] - t2 * grad[1]});
-
-        double t3 = t1 - ((t1 - t2) * (t1 - t2) * (f1 - f2)) / (2 * ((f1 - f2) - (t1 - t2) * (grad[0] * grad[0] + grad[1] * grad[1])));
-        double f3 = f(new double[]{x[0] - t3 * grad[0], x[1] - t3 * grad[1]});
-
-        if (f3 < f1 && f3 < f2) {
-            return t3;
-        } else if (f2 < f1) {
-            return t2;
+    private static double quadraticInterpolation(double x1, double dx, double epsilon1, double epsilon2, int[] q, double[] grad, double[] x) {
+        double xBar = 0.0;
+        double x2 = x1 + dx;
+        double f1 = f(new double[]{x[0] - x1 * grad[0], x[1] - x1 * grad[1]});
+        double f2 = f(new double[]{x[0] - x2 * grad[0], x[1] - x2 * grad[1]});
+        double x3, f3;
+        boolean flag = true;
+        int k = 0;
+        if (f1 > f2) {
+            x3 = x1 + 2 * dx;
         } else {
-            return t1;
+            x3 = x1 - dx;
         }
+
+        f3 = f(new double[]{x[0] - x3 * grad[0], x[1] - x3 * grad[1]});
+
+        while (flag) {
+            k++;
+            double Fmin = Math.min(f1, Math.min(f2, f3));
+            double xmin = 0;
+            if (f1 == Fmin) {
+                xmin = x1;
+            } else if (f2 == Fmin) {
+                xmin = x2;
+            } else {
+                xmin = x3;
+            }
+            if (((x2 - x3) * f1 + (x3 - x1) * f2 + (x1 - x2) * f3) == 0) {
+                x1 = xmin;
+            } else {
+                xBar = 0.5 * ((((Math.pow(x2, 2) - Math.pow(x3, 2)) * f1) + ((Math.pow(x3, 2) - Math.pow(x1, 2)) * f2) +
+                        (((Math.pow(x1, 2) - Math.pow(x2, 2)) * f3))) /
+                        (((x2 - x3) * f1) + ((x3 - x1) * f2) + ((x1 - x2) * f3)));
+                double fXBar = f(new double[]{x[0] - xBar * grad[0], x[1] - xBar * grad[1]});
+                if (Math.abs((Fmin - fXBar) / fXBar) < epsilon1 && Math.abs((xmin - xBar) / xBar) < epsilon2) {
+                    q[0] = k;
+                    flag = false;
+                } else {
+                    if (xBar <= x3 && xBar >= x1) {
+                        if (fXBar < Fmin) {
+                            if (x2 < xBar) {
+                                x1 = x2;
+                                x2 = xBar;
+                                f1 = f2;
+                                f2 = fXBar;
+                            } else {
+                                x3 = x2;
+                                x2 = xBar;
+                                f3 = f2;
+                                f2 = fXBar;
+                            }
+                        } else {
+                            if (x2 < xmin) {
+                                x1 = x2;
+                                x2 = xmin;
+                                f1 = f2;
+                                f2 = Fmin;
+                            } else {
+                                x3 = x2;
+                                x2 = xmin;
+                                f3 = f2;
+                                f2 = Fmin;
+                            }
+                        }
+                    } else {
+                        x1 = xBar;
+                        x2 = x1 + dx;
+                        if (f(new double[]{x[0] - x1 * grad[0], x[1] - x1 * grad[1]}) > f(new double[]{x[0] - x2 * grad[0], x[1] - x2 * grad[1]}))
+                            x3 = x1 + 2 * dx;
+                        else
+                            x3 = x1 - dx;
+                        f1 = f(new double[]{x[0] - x1 * grad[0], x[1] - x1 * grad[1]});
+                        f2 = f(new double[]{x[0] - x2 * grad[0], x[1] - x2 * grad[1]});
+                        f3 = f(new double[]{x[0] - x3 * grad[0], x[1] - x3 * grad[1]});
+                    }
+                }
+
+            }
+        }
+        return xBar;
     }
 
     // Решение системы линейных уравнений 2x2
@@ -245,11 +309,12 @@ public class OptimizationMethods {
         // Относительная погрешность для значения функции
         double relErrorF = absErrorF / Math.abs(exactFunctionValue);
 
-        System.out.printf("%s: x = (%.4f, %.4f), f(x) = %.4f, итераций: %d%n", methodName, x[0], x[1], functionValue, result.iterations);
-        System.out.printf("Абсолютная погрешность точки x: %.4f%n", absErrorX);
-        System.out.printf("Относительная погрешность точки x: %.4f%n", relErrorX);
-        System.out.printf("Абсолютная погрешность значения функции: %.4f%n", absErrorF);
-        System.out.printf("Относительная погрешность значения функции: %.4f%n", relErrorF);
+        // Выводим результаты с количеством итераций k + 1
+        System.out.printf("%s: x = (%f, %f), f(x) = %f, итераций: %d%n", methodName, x[0], x[1], functionValue, result.iterations + 1);
+        System.out.printf("Абсолютная погрешность точки x: %f%n", absErrorX);
+        System.out.printf("Относительная погрешность точки x: %f%n", relErrorX);
+        System.out.printf("Абсолютная погрешность значения функции: %f%n", absErrorF);
+        System.out.printf("Относительная погрешность значения функции: %f%n", relErrorF);
         System.out.println();
     }
 }
