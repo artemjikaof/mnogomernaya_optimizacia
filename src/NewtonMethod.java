@@ -46,6 +46,23 @@ public class NewtonMethod {
         return Math.sqrt(sum);
     }
 
+    // Вычисление абсолютной погрешности
+    public static double absoluteError(double[] x, double[] x_exact) {
+        double df1 = Math.abs(2 * x[0] + x[1] - 2) * Math.abs(x_exact[0] - x[0]);
+        double df2 = Math.abs(2 * x[1] + x[0] - 6) * Math.abs(x_exact[1] - x[1]);
+        return df1 + df2;
+    }
+
+    // Вычисление относительной погрешности
+    public static double relativeError(double[] x, double[] x_exact) {
+        double absError = absoluteError(x, x_exact);
+        double fx = f(x);
+        if (fx == 0) {
+            return 0; // Избегаем деления на ноль
+        }
+        return absError / Math.abs(fx);
+    }
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
@@ -64,6 +81,9 @@ public class NewtonMethod {
         // Ввод максимального числа итераций
         System.out.println("Введите предельное число итераций M:");
         int M = scanner.nextInt();
+
+        // Точное решение
+        double[] x_exact = { -0.6667, 3.3333 };
 
         // Матрица Гессе (постоянная)
         double[][] H = hessian();
@@ -120,8 +140,13 @@ public class NewtonMethod {
             fx = fx_new;
             grad = gradient(x);
 
+            // Вычисление абсолютной и относительной погрешностей
+            double absError = absoluteError(x, x_exact);
+            double relError = relativeError(x, x_exact);
+
             // Вывод текущей информации
-            System.out.printf("Итерация %d: x = (%.4f, %.4f), f(x) = %.4f\n", k, x[0], x[1], fx);
+            System.out.printf("Итерация %d: x = (%.4f, %.4f), f(x) = %.4f, Δf = %.4f, δf = %.4f%%\n",
+                    k, x[0], x[1], fx, absError, relError * 100);
 
             k++;
         }
